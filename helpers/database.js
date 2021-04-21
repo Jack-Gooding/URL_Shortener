@@ -35,6 +35,8 @@ const selectUrls = db.prepare(`SELECT *, COUNT(usages.rowid) as count FROM urls
                   GROUP BY  urls.rowid, urls.targetSlug
                   `);
 
+const getUrlsCount = db.prepare(`SELECT COUNT(rowid) as count FROM urls`);
+
 const selectUsages = db.prepare(`SELECT * FROM usages`);
 
 const selectUrlUsages = db.prepare(`SELECT * FROM usages WHERE slug = ?`);
@@ -64,6 +66,7 @@ module.exports = {
   selectUrls,
   selectUsages,
   selectUrlUsages,
+  getUrlsCount,
   insertUrl,
   insertUsage,
 };

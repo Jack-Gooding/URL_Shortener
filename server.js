@@ -66,6 +66,11 @@ server.get("/urls", async (req, res) => {
   res.status(200).json({ urls: urls });
 });
 
+server.get("/urls/count", async (req, res) => {
+  let count = db.getUrlsCount.all();
+  res.status(200).send(count);
+});
+
 server.get("/usages", async (req, res) => {
   let slug = req.body.slug;
   let usages = db.selectUsages.all();
@@ -115,7 +120,7 @@ let checkValidURL = async (url) => {
 
 let checkValidSlug = async (url) => {
   //Only allow a-z, A-Z, 0-9,
-  let regex = new RegExp(/^([a-z]|[A-Z]|[0-9]){1,8}$/);
+  let regex = new RegExp(/^([a-z]|[A-Z]|[0-9]){1,40}$/);
   let test = regex.test(url);
 
   return test;
