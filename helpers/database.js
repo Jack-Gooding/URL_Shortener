@@ -1,4 +1,4 @@
-const db = require('better-sqlite3')('urls.db');
+const db = require("better-sqlite3")("urls.db");
 
 const createUrlsTable = db.prepare(`CREATE TABLE IF NOT EXISTS urls (
 
@@ -15,8 +15,8 @@ const createUsagesTable = db.prepare(`CREATE TABLE IF NOT EXISTS usages (
   accessedAt TEXT NOT NULL,
   slug TEXT,
   FOREIGN KEY (slug)
-      REFERENCES urls (targetSlug)
-)`)
+  REFERENCES urls (targetSlug)
+)`);
 
 createUrlsTable.run();
 createUsagesTable.run();
@@ -28,14 +28,16 @@ const selectUrl = db.prepare(`SELECT *, COUNT(usages.rowid) as count FROM urls
                   LEFT JOIN usages ON urls.targetSlug = usages.slug
                   WHERE urls.targetSlug = ?
                   GROUP BY  urls.rowid, urls.targetSlug
-                  `
-);
+                  `);
 
 const selectUrls = db.prepare(`SELECT *, COUNT(usages.rowid) as count FROM urls
                   LEFT JOIN usages ON urls.targetSlug = usages.slug
                   GROUP BY  urls.rowid, urls.targetSlug
                   `);
+
 const selectUsages = db.prepare(`SELECT * FROM usages`);
+
+const selectUrlUsages = db.prepare(`SELECT * FROM usages WHERE slug = ?`);
 
 const insertUrl = db.prepare(`INSERT INTO urls (
                     created,
@@ -45,8 +47,7 @@ const insertUrl = db.prepare(`INSERT INTO urls (
                     strftime('%Y-%m-%dT%H:%M:%SZ'),
                     ?,
                     ?
-                  )`
-);
+                  )`);
 
 const insertUsage = db.prepare(`INSERT INTO usages (
             accessedAt,
@@ -54,15 +55,15 @@ const insertUsage = db.prepare(`INSERT INTO usages (
           ) VALUES (
             strftime('%Y-%m-%dT%H:%M:%SZ'),
             ?
-          )`
-);
-
-
+          )`);
 
 module.exports = {
-
-  dropUrlsTable, dropUsagesTable,
-  selectUrl, selectUrls, selectUsages,
-  insertUrl, insertUsage,
-
+  dropUrlsTable,
+  dropUsagesTable,
+  selectUrl,
+  selectUrls,
+  selectUsages,
+  selectUrlUsages,
+  insertUrl,
+  insertUsage,
 };
