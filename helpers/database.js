@@ -5,8 +5,8 @@ const createUrlsTable = db.prepare(`CREATE TABLE IF NOT EXISTS urls (
   rowid INTEGER PRIMARY KEY,
   created TEXT NOT NULL,
   url TEXT NOT NULL,
-  targetSlug TEXT UNIQUE
-
+  targetSlug TEXT UNIQUE,
+  description TEXT
 )`);
 
 const createUsagesTable = db.prepare(`CREATE TABLE IF NOT EXISTS usages (
@@ -44,9 +44,11 @@ const selectUrlUsages = db.prepare(`SELECT * FROM usages WHERE slug = ?`);
 const insertUrl = db.prepare(`INSERT INTO urls (
                     created,
                     url,
-                    targetSlug
+                    targetSlug,
+                    description
                   ) VALUES (
                     strftime('%Y-%m-%dT%H:%M:%SZ'),
+                    ?,
                     ?,
                     ?
                   )`);

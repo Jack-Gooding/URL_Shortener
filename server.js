@@ -5,6 +5,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const slowDown = require("express-slow-down");
 const rateLimit = require("express-rate-limit");
+const { body, check, validationResult } = require("express-validator");
 
 const { customAlphabet } = require("nanoid");
 const nanoid = customAlphabet(
@@ -67,46 +68,106 @@ server.get("/urls", async (req, res) => {
 });
 
 server.get("/urls/count", async (req, res) => {
-  let count = db.getUrlsCount.all();
+  let count = db.getUrlsCount.get();
+  console.log(count);
   res.status(200).send(count);
 });
 
 server.get("/usages", async (req, res) => {
-  let slug = req.body.slug;
   let usages = db.selectUsages.all();
   res.status(200).json({ usages: usages });
 });
 
-server.get("/usage/:slug", async (req, res) => {
-  let slug = req.params.slug;
-  let url = db.selectUrl.all(slug);
-  let usages = db.selectUrlUsages.all(slug);
-  res.status(200).json({ url, usages });
-});
-
-server.get("/:slug", async (req, res) => {
-  let slug = req.params.slug;
-  try {
-    // console.log("slug");
-    // console.log(slug);
-    let entry = await db.selectUrl.get(slug);
-    // console.log("entry");
-    // console.log(entry);
-    if (entry) {
-      let record = await db.insertUsage.run(slug);
-      // console.log("record");
-      // console.log(record);
-      let url = entry.url;
-      res.redirect(url);
-      //res.send(entry);
-    } else {
-      res.status(404).send("Sorry, url not found!");
+server.get(
+  "/usage/:slug",
+  [
+    check("slug")
+      .trim()
+      .isLength({ max: 40 })
+      .withMessage("Slug too long. Please use a smaller slug.")
+      .escape(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
-  } catch (e) {
-    // console.log(e);
-    res.status(500).send(`An error occurred during redirect, sorry! ${e}`);
+
+    let slug = req.params.slug;
+    let isValid = await checkValidSlug(slug);
+
+    console.log(slug);
+    console.log(isValid);
+
+    if (isValid) {
+      try {
+        let url = db.selectUrl.get(slug);
+        let usages = db.selectUrlUsages.all(slug);
+        if (url != null) {
+          console.log(200);
+          res.status(200).json({ url, usages });
+        } else {
+          console.log(404);
+          res.status(404).send(`Could not find URL. Please try again.`);
+        }
+      } catch (e) {
+        console.log(500);
+        console.log(e);
+        res.status(500).send(`An error occurred during lookup, sorry! ${e}`);
+      }
+    } else {
+      console.log(400);
+      res
+        .status(400)
+        .send(`Invalid Slug. Cannot contain spaces or special characters.`);
+    }
   }
-});
+);
+
+server.get(
+  "/:slug",
+  [
+    check("slug")
+      .trim()
+      .isLength({ max: 40 })
+      .withMessage("Slug too long. Please use a smaller slug.")
+      .escape(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    let slug = req.params.slug;
+    let isValid = await checkValidSlug(slug);
+    if (isValid) {
+      try {
+        // console.log("slug");
+        // console.log(slug);
+        let entry = await db.selectUrl.get(slug);
+        // console.log("entry");
+        // console.log(entry);
+        if (entry) {
+          let record = await db.insertUsage.run(slug);
+          // console.log("record");
+          // console.log(record);
+          let url = entry.url;
+          res.redirect(url);
+          //res.send(entry);
+        } else {
+          res.status(404).send("Sorry, url not found!");
+        }
+      } catch (e) {
+        // console.log(e);
+        res.status(500).send(`An error occurred during redirect, sorry! ${e}`);
+      }
+    } else {
+      res
+        .status(400)
+        .send(`Invalid URL. Slug cannot contain spaces or special characters.`);
+    }
+  }
+);
 
 let checkValidURL = async (url) => {
   //URL pattern
@@ -138,53 +199,72 @@ let ensureHTTP = async (url) => {
   return url;
 };
 
-server.post("/url", rateLimiter, async (req, res) => {
-  console.log(req.body.url);
-
-  let url = req.body.url;
-  let slug = req.body.slug;
-  let slugExists = false;
-
-  let validURL = await checkValidURL(url);
-  let validSlug = await checkValidSlug(slug);
-  // console.log(`URL Valid? : ${validURL}`);
-
-  if (!validURL) {
-    res.status(400).send("URL provided is not valid.");
-    return;
-  } else if (!validSlug && slug.length > 0) {
-    res
-      .status(400)
-      .send(
-        "Slug provided is not valid. Only characters a-Z, 0-9 are permitted."
-      );
-    return;
-  } else {
-    url = await ensureHTTP(url);
-    console.log(url);
-
-    if (slug != null && slug.length > 0) {
-      slugExists = await db.selectUrl.get(slug);
-    } else {
-      slug = nanoid();
+server.post(
+  "/url",
+  rateLimiter,
+  [
+    check("slug")
+      .trim()
+      .isLength({ max: 60 })
+      .withMessage("Slug too long. Please use a smaller slug.")
+      .escape(),
+    check("url").trim().escape(),
+    check("description").trim().escape(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
+    console.log(req.body.url);
 
-    try {
-      if (!slugExists) {
-        await db.insertUrl.run(url, slug);
-      }
+    let url = req.body.url;
+    let slug = req.body.slug;
+    let description = req.body.description;
+
+    let slugExists = false;
+
+    let validURL = await checkValidURL(url);
+    let validSlug = await checkValidSlug(slug);
+    // console.log(`URL Valid? : ${validURL}`);
+
+    if (!validURL) {
+      res.status(400).send("URL provided is not valid.");
+      return;
+    } else if (!validSlug && slug.length > 0) {
       res
-        .status(slugExists ? 409 : 201)
+        .status(400)
         .send(
-          slugExists
-            ? `Slug '${slug}' exists, please use a different slug!`
-            : { url: `${host}/${slug}` }
+          "Slug provided is not valid. Only characters a-Z, 0-9 are permitted."
         );
-    } catch (e) {
-      res.status(500).send(`An error occurred: ${e}`);
+      return;
+    } else {
+      url = await ensureHTTP(url);
+      console.log(url);
+
+      if (slug != null && slug.length > 0) {
+        slugExists = await db.selectUrl.get(slug);
+      } else {
+        slug = nanoid();
+      }
+
+      try {
+        if (!slugExists) {
+          await db.insertUrl.run(url, slug, description);
+        }
+        res
+          .status(slugExists ? 409 : 201)
+          .send(
+            slugExists
+              ? `Slug '${slug}' exists, please use a different slug!`
+              : { url: `${host}/${slug}` }
+          );
+      } catch (e) {
+        res.status(500).send(`An error occurred: ${e}`);
+      }
     }
   }
-});
+);
 
 server.delete("/tables", async (req, res) => {
   db.dropUsagesTable.run();
