@@ -64,6 +64,11 @@ server.get("/", async (req, res) => {
 
 server.get("/urls", async (req, res) => {
   let urls = db.selectUrls.all();
+
+  urls.forEach((url) => {
+    url.url = unescape(url.url);
+  });
+
   res.status(200).json({ urls: urls });
 });
 
@@ -104,6 +109,7 @@ server.get(
         let url = db.selectUrl.get(slug);
         let usages = db.selectUrlUsages.all(slug);
         if (url != null) {
+          url.url = unescape(url.url);
           console.log(200);
           res.status(200).json({ url, usages });
         } else {
@@ -151,7 +157,7 @@ server.get(
           let record = await db.insertUsage.run(slug);
           // console.log("record");
           // console.log(record);
-          let url = entry.url;
+          let url = unescape(entry.url);
           res.redirect(url);
           //res.send(entry);
         } else {
@@ -239,7 +245,9 @@ server.post(
         );
       return;
     } else {
-      url = await ensureHTTP(url);
+      //I don't think this should be enforced.
+      //url = await ensureHTTP(url);
+
       console.log(url);
 
       if (slug != null && slug.length > 0) {
