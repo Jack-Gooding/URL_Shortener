@@ -89,8 +89,7 @@ server.get(
     check("slug")
       .trim()
       .isLength({ max: 40 })
-      .withMessage("Slug too long. Please use a smaller slug.")
-      .escape(),
+      .withMessage("Slug too long. Please use a smaller slug."),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -98,7 +97,7 @@ server.get(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    let slug = req.params.slug;
+    let slug = escape(req.params.slug);
     let isValid = await checkValidSlug(slug);
 
     console.log(slug);
@@ -109,7 +108,11 @@ server.get(
         let url = db.selectUrl.get(slug);
         let usages = db.selectUrlUsages.all(slug);
         if (url != null) {
+          console.log(url.url);
+          unescape(url.url);
+          console.log(url.url);
           url.url = unescape(url.url);
+          console.log(url.url);
           console.log(200);
           res.status(200).json({ url, usages });
         } else {
@@ -136,16 +139,16 @@ server.get(
     check("slug")
       .trim()
       .isLength({ max: 40 })
-      .withMessage("Slug too long. Please use a smaller slug.")
-      .escape(),
+      .withMessage("Slug too long. Please use a smaller slug."),
   ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    let slug = req.params.slug;
+    let slug = escape(req.params.slug);
     let isValid = await checkValidSlug(slug);
+
     if (isValid) {
       try {
         // console.log("slug");
@@ -212,10 +215,9 @@ server.post(
     check("slug")
       .trim()
       .isLength({ max: 60 })
-      .withMessage("Slug too long. Please use a smaller slug.")
-      .escape(),
-    check("url").trim().escape(),
-    check("description").trim().escape(),
+      .withMessage("Slug too long. Please use a smaller slug."),
+    check("url").trim(),
+    check("description").trim(),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -224,9 +226,9 @@ server.post(
     }
     console.log(req.body.url);
 
-    let url = req.body.url;
-    let slug = req.body.slug;
-    let description = req.body.description;
+    let url = escape(req.body.url);
+    let slug = escape(req.body.slug);
+    let description = escape(req.body.description);
 
     let slugExists = false;
 
